@@ -1,22 +1,8 @@
-import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-
-Future<List> fetchGuests() async {
-  final response =
-      await http.get(Uri.parse('http://192.168.0.130:3000/api/wedding-guests'));
-
-  if (response.statusCode == 200) {
-    // If the server did return a 200 OK response,
-    // then parse the JSON.
-    return jsonDecode(response.body);
-  } else {
-    // If the server did not return a 200 OK response,
-    // then throw an exception.
-    throw Exception('Failed to load album');
-  }
-}
+import 'package:wedding_mobile_app/screens/add_guest.dart';
+import 'package:wedding_mobile_app/service.dart';
 
 void main() {
   runApp(const MyApp());
@@ -30,12 +16,18 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  late Future<List<dynamic>> guests;
+  List<Guest> guests = [];
+  List<Guest> filteredGuests = [];
+  TextEditingController editingController = TextEditingController();
+  final duplicateItems = List<String>.generate(10000, (i) => "Item $i");
 
   @override
   void initState() {
     super.initState();
-    guests = fetchGuests();
+    fetchData().then((List<Guest> temp) {
+      setState(() => guests = temp);
+      setState(() => filteredGuests = temp);
+    });
   }
 
   @override
@@ -47,46 +39,63 @@ class _MyAppState extends State<MyApp> {
         theme: ThemeData(
           primarySwatch: Colors.green,
         ),
-        home: Scaffold(
-          appBar: AppBar(
-            title: const Text(title),
-          ),
-          body: Center(
-            child: FutureBuilder<List<dynamic>>(
-              future: guests,
-              builder: (context, snapshot) {
-                if (snapshot.hasData) {
-                  if (snapshot.data == null) {
-                    return Text("No guest added");
-                  } else {
-                    List<dynamic> list = snapshot.data as List<dynamic>;
-                    return ListView.builder(
+        home: Builder(
+          builder: (context) => Scaffold(
+            appBar: AppBar(
+              title: const Text(title),
+            ),
+            body: ListView(
+              // This next line does the trick.
+              scrollDirection: Axis.vertical,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: TextField(
+                    onChanged: (value) {
+                      setState(() => {
+                            filteredGuests = guests
+                                .where((guest) =>
+                                    guest.name.contains(value) || value == "")
+                                .toList()
+                          });
+                    },
+                    controller: editingController,
+                    decoration: const InputDecoration(
+                        labelText: "Search",
+                        hintText: "Search",
+                        prefixIcon: Icon(Icons.search),
+                        border: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.all(Radius.circular(25.0)))),
+                  ),
+                ),
+                Center(
+                    child: ListView.builder(
                         // Let the ListView know how many items it needs to build.
-                        itemCount: list.length,
+                        itemCount: filteredGuests.length,
+                        shrinkWrap: true,
                         // Provide a builder function. This is where the magic happens.
                         // Convert each item into a widget based on the type of item it is.
                         itemBuilder: (context, index) {
-                          Guest item = Guest.fromJson(list[index]);
+                          Guest item = filteredGuests[index];
 
                           return ListTile(
                             leading: item.chooseIcon(context),
                             title: item.buildTitle(context),
                             iconColor: item.chooseIconColor(context),
                           );
-                        });
-                  }
-                } else if (snapshot.hasError) {
-                  return Text('${snapshot.error}');
-                }
-
-                // By default, show a loading spinner.
-                return const CircularProgressIndicator();
-              },
+                        }))
+              ],
             ),
-          ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () {},
-            child: Icon(Icons.add),
+            floatingActionButton: FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AddGuest()),
+                );
+              },
+              child: Icon(Icons.add),
+            ),
           ),
         ),
         debugShowCheckedModeBanner: false);
