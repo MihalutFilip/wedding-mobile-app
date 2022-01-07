@@ -1,7 +1,7 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-import 'package:wedding_mobile_app/main.dart';
+import 'models/guest.dart';
 
 Future<List<Guest>> fetchData() async {
   final response =
