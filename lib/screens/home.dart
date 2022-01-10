@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:wedding_mobile_app/models/confirmation_type.dart';
 import 'package:wedding_mobile_app/models/guest.dart';
 import 'package:wedding_mobile_app/models/pair.dart';
-import 'package:wedding_mobile_app/screens/add_guest.dart';
+import 'package:wedding_mobile_app/screens/add_guest_screen.dart';
 import 'package:wedding_mobile_app/service.dart';
 
 class HomeWidget extends StatefulWidget {
@@ -105,7 +105,8 @@ class HomeWidgetState extends State<HomeWidget> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const AddGuest()),
+                  MaterialPageRoute(
+                      builder: (context) => const AddGuestWidget()),
                 );
               },
               child: Icon(Icons.add),
