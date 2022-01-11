@@ -1,11 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:wedding_mobile_app/config/utils.dart';
 import 'package:wedding_mobile_app/models/confirmation_type.dart';
 import 'package:wedding_mobile_app/models/guest.dart';
 import 'package:wedding_mobile_app/models/pair.dart';
 import 'package:wedding_mobile_app/screens/add_guest_screen.dart';
-import 'package:wedding_mobile_app/service.dart';
+import 'package:wedding_mobile_app/config/service.dart';
 
 class HomeWidget extends StatefulWidget {
   const HomeWidget({Key? key}) : super(key: key);
@@ -27,20 +28,46 @@ class HomeWidgetState extends State<HomeWidget> {
     });
   }
 
-  Pair<Widget, Color> getIconAndColor(
-      BuildContext context, ConfirmationType confirmationType) {
-    // Switch Icon and color based on confirmation type
-    Map<ConfirmationType, Pair<IconData, Color>> dictionary = {
-      ConfirmationType.Confirmed:
-          Pair(Icons.face_retouching_natural, Colors.green),
-      ConfirmationType.Invited: Pair(Icons.face, Colors.blueAccent),
-      ConfirmationType.NotComing: Pair(Icons.face_retouching_off, Colors.red),
-      ConfirmationType.NotInvited: Pair(Icons.face_retouching_off, Colors.red)
-    };
+  Widget getConfirmationTypeBox(
+      String boxTitle, ConfirmationType confirmationType) {
+    List<Guest> guestsByType = filteredGuests
+        .where((guest) => guest.confirmationType == confirmationType)
+        .toList();
 
-    var iconAndColor = dictionary[confirmationType] as Pair<IconData, Color>;
+    if (guestsByType.isEmpty) return Container();
 
-    return Pair(Icon(iconAndColor.first), iconAndColor.second);
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Container(
+        decoration: Utils.getBoxDecoration(),
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 5.0),
+          child: Column(
+            children: [
+              Utils.getBoxTitleWidget(boxTitle),
+              Center(
+                  child: ListView.builder(
+                      padding: EdgeInsets.zero,
+                      itemCount: guestsByType.length,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemBuilder: (context, index) {
+                        Guest guest = guestsByType[index];
+
+                        return ListTile(
+                          leading: Icon(
+                              guest.isChild ? Icons.child_care : Icons.face),
+                          title: Text(guest.name),
+                          iconColor: Colors.blueGrey,
+                          visualDensity:
+                              VisualDensity(horizontal: 0, vertical: -4),
+                        );
+                      })),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -50,7 +77,7 @@ class HomeWidgetState extends State<HomeWidget> {
     return MaterialApp(
         title: title,
         theme: ThemeData(
-          primarySwatch: Colors.green,
+          primarySwatch: Colors.brown,
         ),
         home: Builder(
           builder: (context) => Scaffold(
@@ -59,7 +86,6 @@ class HomeWidgetState extends State<HomeWidget> {
             ),
             body: ListView(
               // This next line does the trick.
-              scrollDirection: Axis.vertical,
               children: <Widget>[
                 Padding(
                   padding: const EdgeInsets.all(8.0),
@@ -81,24 +107,11 @@ class HomeWidgetState extends State<HomeWidget> {
                                 BorderRadius.all(Radius.circular(25.0)))),
                   ),
                 ),
-                Center(
-                    child: ListView.builder(
-                        // Let the ListView know how many items it needs to build.
-                        itemCount: filteredGuests.length,
-                        shrinkWrap: true,
-                        // Provide a builder function. This is where the magic happens.
-                        // Convert each item into a widget based on the type of item it is.
-                        itemBuilder: (context, index) {
-                          Guest guest = filteredGuests[index];
-                          final iconAndColor =
-                              getIconAndColor(context, guest.confirmationType);
-
-                          return ListTile(
-                            leading: iconAndColor.first,
-                            title: Text(guest.name),
-                            iconColor: iconAndColor.second,
-                          );
-                        }))
+                getConfirmationTypeBox(
+                    'Not Invited', ConfirmationType.NotInvited),
+                getConfirmationTypeBox('Invited', ConfirmationType.Invited),
+                getConfirmationTypeBox('Confirmed', ConfirmationType.Confirmed),
+                getConfirmationTypeBox('Not Coming', ConfirmationType.NotComing)
               ],
             ),
             floatingActionButton: FloatingActionButton(

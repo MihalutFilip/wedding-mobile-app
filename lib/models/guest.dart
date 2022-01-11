@@ -4,14 +4,20 @@ class Guest {
   final String? id;
   final String name;
   final ConfirmationType confirmationType;
+  final bool isChild;
 
-  Guest({this.id, required this.name, required this.confirmationType});
+  Guest(
+      {this.id,
+      required this.name,
+      required this.confirmationType,
+      required this.isChild});
 
   factory Guest.fromJson(Map<String, dynamic> json) {
     return Guest(
         id: json['_id'],
         name: json['name'],
         confirmationType:
-            ConfirmationType.values[json['confirmationType'] ?? 0]);
+            ConfirmationType.values[json['confirmationType'] ?? 0],
+        isChild: json['isChild']);
   }
 }
