@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart';
 import 'package:wedding_mobile_app/config/utils.dart';
 import 'package:wedding_mobile_app/models/confirmation_type.dart';
 import 'package:wedding_mobile_app/models/guest.dart';
@@ -16,16 +18,111 @@ class HomeWidget extends StatefulWidget {
 }
 
 class HomeWidgetState extends State<HomeWidget> {
-  List<Guest> guests = [];
+  late Future<Object> getAllGuestsResponse;
   List<Guest> filteredGuests = [];
+  String searchKey = "";
 
   @override
   void initState() {
     super.initState();
-    fetchData().then((List<Guest> temp) {
-      setState(() => guests = temp);
-      setState(() => filteredGuests = temp);
+
+    getAllGuestsResponse = ApiCallService.getGuests();
+  }
+
+  Future<void> extractDataFromResult(Response response) async {
+    final data = await json.decode(response.body);
+
+    List<Guest> temp = [];
+
+    for (var item in data) {
+      temp.add(Guest.fromJson(item));
+    }
+
+    setState(() {
+      filteredGuests = temp
+          .where((guest) => guest.name.contains(searchKey) || searchKey == "")
+          .toList();
     });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const title = 'Wedding App';
+
+    return MaterialApp(
+        title: title,
+        theme: ThemeData(
+          primarySwatch: Colors.brown,
+        ),
+        home: Builder(
+          builder: (context) => Scaffold(
+            appBar: AppBar(
+              title: const Text(title),
+            ),
+            body: FutureBuilder<Object>(
+                future: getAllGuestsResponse,
+                builder: (builderContext, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (snapshot.hasError) {
+                    return Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Center(
+                            child: Text(
+                                Utils.getDefaultErrorMessage() + '😭😭😭😭',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.normal,
+                                    fontSize: 16))));
+                  } else {
+                    extractDataFromResult(snapshot.data as Response);
+
+                    return ListView(
+                      // This next line does the trick.
+                      children: <Widget>[
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: TextField(
+                            onChanged: (value) {
+                              setState(() => {searchKey = value});
+                            },
+                            decoration: const InputDecoration(
+                                labelText: "Search",
+                                hintText: "Search",
+                                prefixIcon: Icon(Icons.search),
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.all(
+                                        Radius.circular(25.0)))),
+                          ),
+                        ),
+                        getConfirmationTypeBox(
+                            'Not Invited', ConfirmationType.NotInvited),
+                        getConfirmationTypeBox(
+                            'Invited', ConfirmationType.Invited),
+                        getConfirmationTypeBox(
+                            'Confirmed', ConfirmationType.Confirmed),
+                        getConfirmationTypeBox(
+                            'Not Coming', ConfirmationType.NotComing)
+                      ],
+                    );
+                  }
+                }),
+            floatingActionButton: FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => AddGuestWidget(
+                          callback: (guest) => {
+                                setState(() => {filteredGuests.add(guest)})
+                              })),
+                );
+              },
+              child: Icon(Icons.add),
+            ),
+          ),
+        ),
+        debugShowCheckedModeBanner: false);
   }
 
   Widget getConfirmationTypeBox(
@@ -68,64 +165,5 @@ class HomeWidgetState extends State<HomeWidget> {
         ),
       ),
     );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    const title = 'Wedding App';
-
-    return MaterialApp(
-        title: title,
-        theme: ThemeData(
-          primarySwatch: Colors.brown,
-        ),
-        home: Builder(
-          builder: (context) => Scaffold(
-            appBar: AppBar(
-              title: const Text(title),
-            ),
-            body: ListView(
-              // This next line does the trick.
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: TextField(
-                    onChanged: (value) {
-                      setState(() => {
-                            filteredGuests = guests
-                                .where((guest) =>
-                                    guest.name.contains(value) || value == "")
-                                .toList()
-                          });
-                    },
-                    decoration: const InputDecoration(
-                        labelText: "Search",
-                        hintText: "Search",
-                        prefixIcon: Icon(Icons.search),
-                        border: OutlineInputBorder(
-                            borderRadius:
-                                BorderRadius.all(Radius.circular(25.0)))),
-                  ),
-                ),
-                getConfirmationTypeBox(
-                    'Not Invited', ConfirmationType.NotInvited),
-                getConfirmationTypeBox('Invited', ConfirmationType.Invited),
-                getConfirmationTypeBox('Confirmed', ConfirmationType.Confirmed),
-                getConfirmationTypeBox('Not Coming', ConfirmationType.NotComing)
-              ],
-            ),
-            floatingActionButton: FloatingActionButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const AddGuestWidget()),
-                );
-              },
-              child: Icon(Icons.add),
-            ),
-          ),
-        ),
-        debugShowCheckedModeBanner: false);
   }
 }

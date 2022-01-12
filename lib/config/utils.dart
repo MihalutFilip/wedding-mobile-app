@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 class Utils {
@@ -30,5 +29,25 @@ class Utils {
               style:
                   const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         ));
+  }
+
+  static showErrorSnackBar(BuildContext context) {
+    final snackBar = SnackBar(
+      content: Text(getDefaultErrorMessage()),
+      action: SnackBarAction(
+        label: '',
+        onPressed: () {},
+      ),
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(snackBar);
+  }
+
+  static bool isStatusOk(int status) {
+    return 200 <= status && status < 300;
+  }
+
+  static String getDefaultErrorMessage() {
+    return 'Something happened. Check your internet connection and try again';
   }
 }

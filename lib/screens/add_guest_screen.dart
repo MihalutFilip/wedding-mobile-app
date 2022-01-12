@@ -1,20 +1,31 @@
+import 'dart:convert';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:wedding_mobile_app/config/service.dart';
 import 'package:wedding_mobile_app/config/utils.dart';
 import 'package:wedding_mobile_app/models/confirmation_type.dart';
 import 'package:wedding_mobile_app/models/guest.dart';
 import 'package:wedding_mobile_app/models/request_models/add_guest.dart';
 
+typedef void GuestCallback(Guest guest);
+
 class AddGuestWidget extends StatefulWidget {
-  const AddGuestWidget({Key? key}) : super(key: key);
+  final GuestCallback callback;
+
+  AddGuestWidget({Key? key, required this.callback}) : super(key: key);
 
   @override
-  AddGuestScreen createState() => AddGuestScreen();
+  AddGuestScreen createState() => AddGuestScreen(callback);
 }
 
 class AddGuestScreen extends State<AddGuestWidget> {
-  ConfirmationType? _confirmationType = ConfirmationType.NotInvited;
-  bool? _isChild = false;
+  ConfirmationType _confirmationType = ConfirmationType.NotInvited;
+  bool _isChild = false;
+  String _name = "";
+  final GuestCallback callback;
+
+  AddGuestScreen(this.callback) {}
 
   @override
   void initState() {}
@@ -28,7 +39,7 @@ class AddGuestScreen extends State<AddGuestWidget> {
         groupValue: _confirmationType,
         onChanged: (ConfirmationType? value) {
           setState(() {
-            _confirmationType = value;
+            _confirmationType = value as ConfirmationType;
           });
         },
       ),
@@ -40,11 +51,16 @@ class AddGuestScreen extends State<AddGuestWidget> {
     return Container(
         decoration: Utils.getBoxDecoration(),
         margin: const EdgeInsets.all(10.0),
-        child: Column(children: const <Widget>[
+        child: Column(children: <Widget>[
           Padding(
-              padding: EdgeInsets.fromLTRB(20, 20, 20, 20),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
               child: TextField(
-                decoration: InputDecoration.collapsed(hintText: 'Name'),
+                decoration: const InputDecoration.collapsed(hintText: 'Name'),
+                onChanged: (String? value) {
+                  setState(() {
+                    _name = value as String;
+                  });
+                },
               )),
         ]));
   }
@@ -75,7 +91,7 @@ class AddGuestScreen extends State<AddGuestWidget> {
               value: _isChild,
               onChanged: (newValue) {
                 setState(() {
-                  _isChild = newValue;
+                  _isChild = newValue as bool;
                 });
               },
               controlAffinity:
@@ -83,6 +99,22 @@ class AddGuestScreen extends State<AddGuestWidget> {
             ),
           )
         ]));
+  }
+
+  void saveGuest(BuildContext context) async {
+    var request = AddGuest(
+        name: _name, confirmationType: _confirmationType, isChild: _isChild);
+
+    var response = await ApiCallService.addGuest(request);
+
+    var data = await json.decode(response.body);
+
+    if (response.statusCode == 201) {
+      callback(request.toGuest(data['insertedId']));
+      Navigator.pop(context);
+    } else {
+      Utils.showErrorSnackBar(context);
+    }
   }
 
   @override
@@ -101,7 +133,7 @@ class AddGuestScreen extends State<AddGuestWidget> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: <Widget>[
                   ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () => saveGuest(context),
                     child: const Text('Add'),
                   ),
                 ]),
