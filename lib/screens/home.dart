@@ -18,15 +18,22 @@ class HomeWidget extends StatefulWidget {
 }
 
 class HomeWidgetState extends State<HomeWidget> {
-  late Future<Object> getAllGuestsResponse;
   List<Guest> filteredGuests = [];
   String searchKey = "";
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
 
-    getAllGuestsResponse = ApiCallService.getGuests();
+    ApiCallService.getGuests().then((value) {
+      setState(() {
+        _isLoading = false;
+        filteredGuests = value
+            .where((guest) => guest.name.contains(searchKey) || searchKey == "")
+            .toList();
+      });
+    });
   }
 
   Future<void> extractDataFromResult(Response response) async {
@@ -38,11 +45,7 @@ class HomeWidgetState extends State<HomeWidget> {
       temp.add(Guest.fromJson(item));
     }
 
-    setState(() {
-      filteredGuests = temp
-          .where((guest) => guest.name.contains(searchKey) || searchKey == "")
-          .toList();
-    });
+    setState(() {});
   }
 
   @override
@@ -59,54 +62,36 @@ class HomeWidgetState extends State<HomeWidget> {
             appBar: AppBar(
               title: const Text(title),
             ),
-            body: FutureBuilder<Object>(
-                future: getAllGuestsResponse,
-                builder: (builderContext, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (snapshot.hasError) {
-                    return Padding(
+            body: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : ListView(
+                    // This next line does the trick.
+                    children: <Widget>[
+                      Padding(
                         padding: const EdgeInsets.all(8.0),
-                        child: Center(
-                            child: Text(
-                                Utils.getDefaultErrorMessage() + '😭😭😭😭',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.normal,
-                                    fontSize: 16))));
-                  } else {
-                    extractDataFromResult(snapshot.data as Response);
-
-                    return ListView(
-                      // This next line does the trick.
-                      children: <Widget>[
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: TextField(
-                            onChanged: (value) {
-                              setState(() => {searchKey = value});
-                            },
-                            decoration: const InputDecoration(
-                                labelText: "Search",
-                                hintText: "Search",
-                                prefixIcon: Icon(Icons.search),
-                                border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.all(
-                                        Radius.circular(25.0)))),
-                          ),
+                        child: TextField(
+                          onChanged: (value) {
+                            setState(() => {searchKey = value});
+                          },
+                          decoration: const InputDecoration(
+                              labelText: "Search",
+                              hintText: "Search",
+                              prefixIcon: Icon(Icons.search),
+                              border: OutlineInputBorder(
+                                  borderRadius:
+                                      BorderRadius.all(Radius.circular(25.0)))),
                         ),
-                        getConfirmationTypeBox(
-                            'Not Invited', ConfirmationType.NotInvited),
-                        getConfirmationTypeBox(
-                            'Invited', ConfirmationType.Invited),
-                        getConfirmationTypeBox(
-                            'Confirmed', ConfirmationType.Confirmed),
-                        getConfirmationTypeBox(
-                            'Not Coming', ConfirmationType.NotComing)
-                      ],
-                    );
-                  }
-                }),
+                      ),
+                      getConfirmationTypeBox(
+                          'Not Invited', ConfirmationType.NotInvited),
+                      getConfirmationTypeBox(
+                          'Invited', ConfirmationType.Invited),
+                      getConfirmationTypeBox(
+                          'Confirmed', ConfirmationType.Confirmed),
+                      getConfirmationTypeBox(
+                          'Not Coming', ConfirmationType.NotComing)
+                    ],
+                  ),
             floatingActionButton: FloatingActionButton(
               onPressed: () {
                 Navigator.push(
@@ -145,20 +130,47 @@ class HomeWidgetState extends State<HomeWidget> {
               Center(
                   child: ListView.builder(
                       padding: EdgeInsets.zero,
-                      itemCount: guestsByType.length,
+                      itemCount: filteredGuests.length,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemBuilder: (context, index) {
-                        Guest guest = guestsByType[index];
+                        Guest guest = filteredGuests[index];
 
-                        return ListTile(
-                          leading: Icon(
-                              guest.isChild ? Icons.child_care : Icons.face),
-                          title: Text(guest.name),
-                          iconColor: Colors.blueGrey,
-                          visualDensity:
-                              VisualDensity(horizontal: 0, vertical: -4),
-                        );
+                        if (guest.confirmationType != confirmationType)
+                          return Container();
+
+                        return Dismissible(
+                            key: ValueKey(guest.id),
+                            onDismissed: (_) async {
+                              var response =
+                                  await ApiCallService.deleteGuest(guest.id);
+
+                              var message = "";
+
+                              if (response.statusCode != 200) {
+                                message = Utils.getDefaultErrorMessage();
+                              } else {
+                                setState(() {
+                                  filteredGuests.removeWhere(
+                                      (element) => element.id == guest.id);
+                                });
+
+                                message = "Guest " + guest.name + " removed";
+                              }
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(message)));
+                            },
+                            background: Container(color: Colors.red),
+                            child: ListTile(
+                              leading: Icon(guest.isChild
+                                  ? Icons.child_care
+                                  : Icons.face),
+                              title: Text(guest.name),
+                              iconColor: Colors.blueGrey,
+                              visualDensity: const VisualDensity(
+                                  horizontal: 0, vertical: -3),
+                            ));
                       })),
             ],
           ),

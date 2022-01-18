@@ -1,13 +1,13 @@
 import 'package:wedding_mobile_app/models/confirmation_type.dart';
 
 class Guest {
-  final String? id;
+  final String id;
   final String name;
   final ConfirmationType confirmationType;
   final bool isChild;
 
   Guest(
-      {this.id,
+      {required this.id,
       required this.name,
       required this.confirmationType,
       required this.isChild});
